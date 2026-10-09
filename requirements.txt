@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pillow
+numpy
+pypdf
+anthropic
+reverse_geocoder
+sentence-transformers
+exoftpp

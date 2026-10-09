@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photo Archivist</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14171c;--mut:#667085;--acc:#1f5eff;--line:#e4e7ec}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--ink:#e8ecf2;--mut:#98a2b3;--acc:#6b93ff;--line:#262c36}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:28px 20px 8px;max-width:1100px;margin:auto}h1{margin:0;font-size:22px}
+.sub{color:var(--mut);font-size:13px;margin-top:2px}
+form{display:flex;gap:8px;max-width:1100px;margin:14px auto;padding:0 20px}
+input{flex:1;padding:13px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px}
+button{padding:0 22px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:15px;cursor:pointer}
+.chips{max-width:1100px;margin:0 auto;padding:0 20px;display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--mut);cursor:pointer}
+#meta{max-width:1100px;margin:12px auto;padding:0 20px;color:var(--mut);font-size:13px}
+#grid{max-width:1100px;margin:auto;padding:0 20px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.card img{width:100%;height:190px;object-fit:cover;background:#0001;display:block}
+.doc{height:190px;display:flex;align-items:center;justify-content:center;font-size:42px;background:#0001}
+.body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.reason{font-size:13px;font-weight:600}.cap{font-size:13px;color:var(--mut)}
+.tags span{font-size:11px;background:var(--bg);border-radius:6px;padding:2px 6px;margin-right:4px;color:var(--mut)}
+.score{font-size:11px;color:var(--mut)}.warn{color:#b54708;font-size:12px}
+details summary{cursor:pointer;font-size:12px;color:var(--acc)}pre{max-height:220px;overflow:auto;font-size:11px;white-space:pre-wrap}
+</style></head><body>
+<header><h1>📸 Photo Archivist</h1><div class="sub">Plain-language search over your photo &amp; document archive — every result comes with a reason and its source.</div></header>
+<form id="f"><input id="q" placeholder='e.g. "the MD at the Indiranagar branch opening" or "loan sanction letters from 2023"' autofocus><button>Search</button></form>
+<div class="chips" id="chips"></div><div id="meta"></div><div id="grid"></div>
+<script>
+const $=s=>document.querySelector(s);
+["the MD at the branch launch","photos from July 2025","loan sanction letters 2023","ribbon cutting crowd"].forEach(t=>{
+  const c=document.createElement("span");c.className="chip";c.textContent=t;c.onclick=()=>{$("#q").value=t;go()};$("#chips").append(c)});
+$("#f").onsubmit=e=>{e.preventDefault();go()};
+fetch("/api/stats").then(r=>r.json()).then(s=>$("#meta").textContent=`Indexed: ${s.files} files · ${s.images} images · ${s.documents} documents · ${s.stripped} with stripped metadata · ${s.duplicates} duplicates reported`);
+async function go(){
+  const q=$("#q").value.trim();if(!q)return;$("#meta").textContent="Searching…";
+  const d=await (await fetch("/api/search?q="+encodeURIComponent(q))).json();
+  const fl=Object.entries(d.filters||{}).filter(([k])=>k!="explain").map(([k,v])=>`${k}: ${v}`).join(" · ");
+  $("#meta").textContent=`${d.results.length} results${fl?" — filters → "+fl:""}${(d.filters&&d.filters.explain)?" — "+d.filters.explain.join("; "):""}${d.note?" — "+d.note:""}${d.semantic===false?" — (keyword mode: embeddings off)":""}`;
+  $("#grid").innerHTML="";
+  for(const r of d.results){
+    const el=document.createElement("div");el.className="card";
+    const media=r.type==="image"?`<a href="${r.url}" target="_blank"><img loading="lazy" src="${r.url}"></a>`:`<a class="doc" href="${r.url}" target="_blank">📄</a>`;
+    el.innerHTML=`${media}<div class="body"><div class="reason">${esc(r.reason||r.filename)}</div>
+      <div class="cap">${esc(r.caption||"")}</div><div class="tags">${(r.tags||[]).map(t=>`<span>${esc(t)}</span>`).join("")}</div>
+      ${(r.flags||[]).length?`<div class="warn">⚠ ${r.flags.map(esc).join(", ")}</div>`:""}
+      <div class="score">${esc(r.filename)} · score ${r.score}</div>
+      <details><summary>full metadata</summary><pre data-id="${r.file_id}">loading…</pre></details></div>`;
+    el.querySelector("details").ontoggle=async ev=>{const pre=el.querySelector("pre");if(ev.target.open&&pre.textContent==="loading…"){
+      const m=await (await fetch("/api/meta/"+r.file_id)).json();pre.textContent=JSON.stringify(m,null,2)}};
+    $("#grid").append(el)}
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+</script></body></html>

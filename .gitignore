@@ -1,0 +1,28 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Secrets and credentials
+*secret*
+*credentials*
+*.pem
+*.key
+
+# Generated data and databases
+data/
+*.db
+*.sqlite
+*.sqlite3
+undo.log
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
